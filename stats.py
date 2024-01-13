@@ -16,27 +16,21 @@ class Statistics:
         self.clusters = None
         self.cluster_stats = None
         self.summary_stats = None
+        self.global_graph = None
 
     def from_tsv(self, clustering_file, graph_file) -> List[RealizedSubgraph]:
         # TODO: This method should load realized graphs from a clustering tsv and a graph edgelist
         # NOTE: Feel free to use the method below
 
         self.clusters = from_existing_clustering(clustering_file).values()
-        ids = [cluster.index for cluster in self.clusters]
-        ns = [cluster.n() for cluster in self.clusters]
-
 
         # (VR) Load full graph into Graph object
         edgelist_reader = nk.graphio.EdgeListReader("\t", 0)
         nk_graph = edgelist_reader.read(input)
 
-        global_graph = Graph(nk_graph, "")
-        ms = [cluster.count_edges(global_graph) for cluster in self.clusters]
+        self.global_graph = Graph(nk_graph, "")
 
-        modularities = [global_graph.modularity_of(cluster) for cluster in self.clusters]
-
-
-        self.clusters = [cluster.realize(global_graph) for cluster in self.clusters]
+        self.clusters = [cluster.realize(self.global_graph) for cluster in self.clusters]
 
     def to_csv(self):
         # TODO: Save the stats to a csv
@@ -95,6 +89,12 @@ def main(
     ms = [cluster.count_edges(global_graph) for cluster in clusters]
     print("Done")
 
+
+
+    # ----------------------------------------------------------------------------------------------------------
+    # Statistics Computing
+
+
     print("Computing modularity...")
     modularities = [global_graph.modularity_of(cluster) for cluster in clusters]
     print("Done")
@@ -108,10 +108,6 @@ def main(
     clusters = [cluster.realize(global_graph) for cluster in clusters]
     print("Done")
 
-
-
-    # ----------------------------------------------------------------------------------------------------------
-    # Statistics Computing
 
     print("Computing mincut...")
     mincut_results = [viecut(cluster) for cluster in clusters]
