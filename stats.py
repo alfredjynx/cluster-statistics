@@ -20,7 +20,23 @@ class Statistics:
     def from_tsv(self, clustering_file, graph_file) -> List[RealizedSubgraph]:
         # TODO: This method should load realized graphs from a clustering tsv and a graph edgelist
         # NOTE: Feel free to use the method below
-        pass
+
+        self.clusters = from_existing_clustering(clustering_file).values()
+        ids = [cluster.index for cluster in self.clusters]
+        ns = [cluster.n() for cluster in self.clusters]
+
+
+        # (VR) Load full graph into Graph object
+        edgelist_reader = nk.graphio.EdgeListReader("\t", 0)
+        nk_graph = edgelist_reader.read(input)
+
+        global_graph = Graph(nk_graph, "")
+        ms = [cluster.count_edges(global_graph) for cluster in self.clusters]
+
+        modularities = [global_graph.modularity_of(cluster) for cluster in self.clusters]
+
+
+        self.clusters = [cluster.realize(global_graph) for cluster in self.clusters]
 
     def to_csv(self):
         # TODO: Save the stats to a csv
@@ -92,6 +108,11 @@ def main(
     clusters = [cluster.realize(global_graph) for cluster in clusters]
     print("Done")
 
+
+
+    # ----------------------------------------------------------------------------------------------------------
+    # Statistics Computing
+
     print("Computing mincut...")
     mincut_results = [viecut(cluster) for cluster in clusters]
     mincuts = [result[-1] for result in mincut_results]
@@ -125,6 +146,12 @@ def main(
     # ktruss_nodes.append(None)
     print("Done")
 
+
+
+
+    # ----------------------------------------------------------------------------------------------------------
+    # Output File
+
     print("Writing to output file...")
 
     if resolution != -1:
@@ -136,6 +163,8 @@ def main(
 
     df.to_csv(outfile, index=False)
     print("Done")
+
+
 
     if len(universal_before) > 0:
         print("Writing extra outputs from CM2Universal")
