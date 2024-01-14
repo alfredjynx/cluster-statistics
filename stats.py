@@ -12,8 +12,21 @@ from hm01.mincut import viecut
 
 
 class Statistics:
-    def __init__(self):
+    def __init__(self,input_file,existing_clustering,resolution:0,universal_before, output):
+
+        self.input = input_file
+        self.existing_clustering = existing_clustering
+        self.resolution = resolution
+        self.universal_before = universal_before
+
+        if output == None or output == "":
+            base, _ = os.path.splitext(existing_clustering)
+            self.outfile = base + '_stats.csv'
+        else:
+            self.outfile = output
+
         self.clusters = None
+        self.realized_clusters = None
         self.cluster_stats = None
         self.summary_stats = None
         self.global_graph = None
@@ -24,25 +37,71 @@ class Statistics:
 
         self.clusters = from_existing_clustering(clustering_file).values()
 
+        self.ids = [cluster.index for cluster in self.clusters]
+        self.ns = [cluster.n() for cluster in self.clusters]
+
         # (VR) Load full graph into Graph object
         edgelist_reader = nk.graphio.EdgeListReader("\t", 0)
-        nk_graph = edgelist_reader.read(input)
+        nk_graph = edgelist_reader.read(graph_file)
 
         self.global_graph = Graph(nk_graph, "")
 
-        self.clusters = [cluster.realize(self.global_graph) for cluster in self.clusters]
+        self.realized_clusters = [cluster.realize(self.global_graph) for cluster in self.clusters]
+
 
     def to_csv(self):
         # TODO: Save the stats to a csv
-        pass
+        self.cluster_stats.to_csv(self.outfile, index=False)
+
 
     def to_summary_csv(self):
         # TODO: Save the summary stats to a csv
         pass
 
     def compute_stats(self):
-        # TODO: Compute the stats and save it to a dataframe
-        self.cluster_stats = None   # NOTE: The pandas dataframe to save it to
+
+        ms = [cluster.count_edges(self.global_graph) for cluster in self.clusters]
+
+        modularities = [self.global_graph.modularity_of(cluster) for cluster in self.clusters]
+
+        if self.resolution != -1:
+            self.cpms = [self.global_graph.cpm(cluster, self.resolution) for cluster in self.clusters]
+
+        mincut_results = [viecut(cluster) for cluster in self.clusters]
+        mincuts = [result[-1] for result in mincut_results]
+        mincuts_normalized = [mincut/log10(self.ns[i]) for i, mincut in enumerate(mincuts)]
+        mincuts_normalized_log2 = [mincut/log2(self.ns[i]) for i, mincut in enumerate(mincuts)]
+        mincuts_normalized_sqrt = [mincut/(self.ns[i]**0.5/5) for i, mincut in  enumerate(mincuts)]
+
+        print("Computing conductance...")
+        conductances = []
+        for i, cluster in enumerate(self.clusters):
+            conductances.append(cluster.conductance(self.global_graph))
+        print("Done")
+
+        print("Computing overall stats...")
+        m = self.global_graph.m()
+        self.ids.append("Overall")
+        modularities.append(sum(modularities))
+
+        if self.resolution != -1:
+            self.cpms.append(sum(self.cpms))
+
+        self.ns.append(self.global_graph.n())
+        ms.append(m)
+        mincuts.append(None)
+        mincuts_normalized.append(None)
+        mincuts_normalized_log2.append(None)
+        mincuts_normalized_sqrt.append(None)
+        conductances.append(None)
+
+        if self.resolution != -1:
+            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, ms, modularities, self.cpms, mincuts, mincuts_normalized, mincuts_normalized_log2, mincuts_normalized_sqrt, conductances)),
+                columns =['cluster', 'n', 'm', 'modularity', 'cpm_score', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+        else:
+            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, ms, modularities, mincuts, mincuts_normalized, mincuts_normalized_log2, mincuts_normalized_sqrt, conductances)),
+            columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+
 
     def compute_summary(self) -> pd.DataFrame:
         # TODO: Compute the summary stats and save it to a dataframe
