@@ -60,52 +60,40 @@ class Statistics:
 
     def compute_stats(self):
 
-        ms = [cluster.count_edges(self.global_graph) for cluster in self.clusters]
+        self.ms = [cluster.count_edges(self.global_graph) for cluster in self.clusters]
 
-        modularities = [self.global_graph.modularity_of(cluster) for cluster in self.clusters]
+        self.modularities = [self.global_graph.modularity_of(cluster) for cluster in self.clusters]
 
         if self.resolution != -1:
             self.cpms = [self.global_graph.cpm(cluster, self.resolution) for cluster in self.clusters]
 
-        mincut_results = [viecut(cluster) for cluster in self.clusters]
-        mincuts = [result[-1] for result in mincut_results]
-        mincuts_normalized = [mincut/log10(self.ns[i]) for i, mincut in enumerate(mincuts)]
-        mincuts_normalized_log2 = [mincut/log2(self.ns[i]) for i, mincut in enumerate(mincuts)]
-        mincuts_normalized_sqrt = [mincut/(self.ns[i]**0.5/5) for i, mincut in  enumerate(mincuts)]
+        self.mincut_results = [viecut(cluster) for cluster in self.clusters]
+        self.mincuts = [result[-1] for result in self.mincut_results]
+        self.mincuts_normalized = [mincut/log10(self.ns[i]) for i, mincut in enumerate(self.mincuts)]
+        self.mincuts_normalized_log2 = [mincut/log2(self.ns[i]) for i, mincut in enumerate(self.mincuts)]
+        self.mincuts_normalized_sqrt = [mincut/(self.ns[i]**0.5/5) for i, mincut in  enumerate(self.mincuts)]
 
-        print("Computing conductance...")
-        conductances = []
+        self.conductances = []
         for i, cluster in enumerate(self.clusters):
-            conductances.append(cluster.conductance(self.global_graph))
-        print("Done")
-
-        print("Computing overall stats...")
-        m = self.global_graph.m()
-        self.ids.append("Overall")
-        modularities.append(sum(modularities))
+            self.conductances.append(cluster.conductance(self.global_graph))
 
         if self.resolution != -1:
-            self.cpms.append(sum(self.cpms))
-
-        self.ns.append(self.global_graph.n())
-        ms.append(m)
-        mincuts.append(None)
-        mincuts_normalized.append(None)
-        mincuts_normalized_log2.append(None)
-        mincuts_normalized_sqrt.append(None)
-        conductances.append(None)
-
-        if self.resolution != -1:
-            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, ms, modularities, self.cpms, mincuts, mincuts_normalized, mincuts_normalized_log2, mincuts_normalized_sqrt, conductances)),
+            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, self.ms, self.modularities, self.cpms, self.mincuts, self.mincuts_normalized, self.mincuts_normalized_log2, self.mincuts_normalized_sqrt, self.conductances)),
                 columns =['cluster', 'n', 'm', 'modularity', 'cpm_score', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
         else:
-            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, ms, modularities, mincuts, mincuts_normalized, mincuts_normalized_log2, mincuts_normalized_sqrt, conductances)),
+            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, self.ms, self.modularities, self.mincuts, self.mincuts_normalized, self.mincuts_normalized_log2, self.mincuts_normalized_sqrt, self.conductances)),
             columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
 
 
     def compute_summary(self) -> pd.DataFrame:
         # TODO: Compute the summary stats and save it to a dataframe
-        self.summary_stats = None
+
+        if self.resolution != -1:
+            self.summary_stats = pd.DataFrame(list(zip("Overall", self.global_graph.n(), self.global_graph.m(), sum(self.modularities), sum(self.cpms), None, None, None, None, None)),
+                columns =['cluster', 'n', 'm', 'modularity', 'cpm_score', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+        else:
+            self.summary_stats = pd.DataFrame(list(zip("Overall", self.global_graph.n(), self.global_graph.m(), sum(self.modularities), None, None, None, None, None)),
+            columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
 
 def from_existing_clustering(filepath) -> List[IntangibleSubgraph]:
     ''' I just modified the original method to return a dict mapping from index to clustering '''
