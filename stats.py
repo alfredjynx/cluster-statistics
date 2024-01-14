@@ -56,7 +56,7 @@ class Statistics:
 
     def to_summary_csv(self):
         # TODO: Save the summary stats to a csv
-        pass
+        self.summary_stats.to_csv(self.outfile+"_summary", index=False)
 
     def compute_stats(self):
 
