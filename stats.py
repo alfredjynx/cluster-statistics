@@ -12,12 +12,12 @@ from hm01.mincut import viecut
 
 
 class Statistics:
-    def __init__(self,input_file,existing_clustering,resolution:0,universal_before, output):
+    def __init__(self,input_file,existing_clustering,resolution=0, output=None):
 
         self.input = input_file
         self.existing_clustering = existing_clustering
         self.resolution = resolution
-        self.universal_before = universal_before
+        # self.universal_before = universal_before
 
         if output == None or output == "":
             base, _ = os.path.splitext(existing_clustering)
@@ -31,18 +31,18 @@ class Statistics:
         self.summary_stats = None
         self.global_graph = None
 
-    def from_tsv(self, clustering_file, graph_file) -> List[RealizedSubgraph]:
+    def from_tsv(self) -> List[RealizedSubgraph]:
         # TODO: This method should load realized graphs from a clustering tsv and a graph edgelist
         # NOTE: Feel free to use the method below
 
-        self.clusters = from_existing_clustering(clustering_file).values()
+        self.clusters = from_existing_clustering(self.existing_clustering).values()
 
         self.ids = [cluster.index for cluster in self.clusters]
         self.ns = [cluster.n() for cluster in self.clusters]
 
         # (VR) Load full graph into Graph object
         edgelist_reader = nk.graphio.EdgeListReader("\t", 0)
-        nk_graph = edgelist_reader.read(graph_file)
+        nk_graph = edgelist_reader.read(self.input)
 
         self.global_graph = Graph(nk_graph, "")
 
@@ -53,10 +53,15 @@ class Statistics:
         # TODO: Save the stats to a csv
         self.cluster_stats.to_csv(self.outfile, index=False)
 
+        return self.cluster_stats
+
 
     def to_summary_csv(self):
         # TODO: Save the summary stats to a csv
         self.summary_stats.to_csv(self.outfile+"_summary", index=False)
+
+        return self.summary_stats
+
 
     def compute_stats(self):
 
@@ -94,6 +99,7 @@ class Statistics:
         else:
             self.summary_stats = pd.DataFrame(list(zip("Overall", self.global_graph.n(), self.global_graph.m(), sum(self.modularities), None, None, None, None, None)),
             columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+
 
 def from_existing_clustering(filepath) -> List[IntangibleSubgraph]:
     ''' I just modified the original method to return a dict mapping from index to clustering '''
