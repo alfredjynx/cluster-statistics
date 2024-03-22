@@ -1,3 +1,5 @@
+# pylint: disable=c-extension-no-member
+
 '''
 Defining the class that computes cluster statistics
 '''
@@ -117,7 +119,9 @@ class Statistics:
                 for cluster in self.clusters
             ]
 
-        self.mincut_results = [viecut(cluster) for cluster in self.clusters]
+        # Only realized clusters from this point onward
+
+        self.mincut_results = [viecut(cluster) for cluster in self.realized_clusters]
         self.mincuts = [result[-1] for result in self.mincut_results]
         self.mincuts_normalized = [
             mincut / log10(self.ns[i]) for i, mincut in enumerate(self.mincuts)
@@ -131,7 +135,7 @@ class Statistics:
         ]
 
         self.conductances = []
-        for i, cluster in enumerate(self.clusters):
+        for i, cluster in enumerate(self.realized_clusters):
             self.conductances.append(cluster.conductance(self.global_graph))
 
         if self.resolution != -1:
@@ -165,6 +169,8 @@ class Statistics:
         '''
         computing summary stats
         '''
+
+        # TODO: Refazer código com base no summarize.py
 
         if self.resolution != -1:
             self.summary_stats = pd.DataFrame(
