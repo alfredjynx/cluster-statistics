@@ -1,25 +1,36 @@
-import typer
-import networkit as nk
-import pandas as pd
+'''
+Defining the class that computes cluster statistics
+'''
+
 import os
 import json
-
-from numpy import log10, log2
 from typing import Dict, List
+from numpy import log10, log2
+import typer
+import pandas as pd
+import networkit as nk
 
 from hm01.graph import Graph, IntangibleSubgraph, RealizedSubgraph
 from hm01.mincut import viecut
 
 
 class Statistics:
-    def __init__(self,input_file,existing_clustering,resolution=0, output=None):
+    '''
+    Class to Compute Cluster Statistics
+    '''
+
+    def __init__(self,
+                 input_file,
+                 existing_clustering,
+                 resolution=0,
+                 output=None):
 
         self.input = input_file
         self.existing_clustering = existing_clustering
         self.resolution = resolution
         # self.universal_before = universal_before
 
-        if output == None or output == "":
+        if output is None or output == "":
             base, _ = os.path.splitext(existing_clustering)
             self.outfile = base + '_stats.csv'
         else:
@@ -30,12 +41,30 @@ class Statistics:
         self.cluster_stats = None
         self.summary_stats = None
         self.global_graph = None
+        self.ids = None
+        self.ns = None
+
+        self.ms = None
+
+        self.modularities = None
+
+        self.cpms = None
+
+        self.mincut_results = None
+        self.mincuts = None
+        self.mincuts_normalized = None
+        self.mincuts_normalized_log2 = None
+        self.mincuts_normalized_sqrt = None
+
+        self.conductances = None
 
     def from_tsv(self) -> List[RealizedSubgraph]:
-        # TODO: This method should load realized graphs from a clustering tsv and a graph edgelist
-        # NOTE: Feel free to use the method below
+        '''
+        Getting cluster from a tsv file
+        '''
 
-        self.clusters = from_existing_clustering(self.existing_clustering).values()
+        self.clusters = from_existing_clustering(
+            self.existing_clustering).values()
 
         self.ids = [cluster.index for cluster in self.clusters]
         self.ns = [cluster.n() for cluster in self.clusters]
@@ -46,80 +75,145 @@ class Statistics:
 
         self.global_graph = Graph(nk_graph, "")
 
-        self.realized_clusters = [cluster.realize(self.global_graph) for cluster in self.clusters]
-
+        self.realized_clusters = [
+            cluster.realize(self.global_graph) for cluster in self.clusters
+        ]
 
     def to_csv(self):
-        # TODO: Save the stats to a csv
+        '''
+        saving the stats to a csv
+        '''
+
         self.cluster_stats.to_csv(self.outfile, index=False)
 
         return self.cluster_stats
 
-
     def to_summary_csv(self):
-        # TODO: Save the summary stats to a csv
-        self.summary_stats.to_csv(self.outfile+"_summary", index=False)
+        '''
+        saving the summary stats to a csv
+        '''
+
+        self.summary_stats.to_csv(self.outfile + "_summary", index=False)
 
         return self.summary_stats
 
-
     def compute_stats(self):
+        '''
+        computing cluster statistics
+        '''
 
-        self.ms = [cluster.count_edges(self.global_graph) for cluster in self.clusters]
+        self.ms = [
+            cluster.count_edges(self.global_graph) for cluster in self.clusters
+        ]
 
-        self.modularities = [self.global_graph.modularity_of(cluster) for cluster in self.clusters]
+        self.modularities = [
+            self.global_graph.modularity_of(cluster)
+            for cluster in self.clusters
+        ]
 
         if self.resolution != -1:
-            self.cpms = [self.global_graph.cpm(cluster, self.resolution) for cluster in self.clusters]
+            self.cpms = [
+                self.global_graph.cpm(cluster, self.resolution)
+                for cluster in self.clusters
+            ]
 
         self.mincut_results = [viecut(cluster) for cluster in self.clusters]
         self.mincuts = [result[-1] for result in self.mincut_results]
-        self.mincuts_normalized = [mincut/log10(self.ns[i]) for i, mincut in enumerate(self.mincuts)]
-        self.mincuts_normalized_log2 = [mincut/log2(self.ns[i]) for i, mincut in enumerate(self.mincuts)]
-        self.mincuts_normalized_sqrt = [mincut/(self.ns[i]**0.5/5) for i, mincut in  enumerate(self.mincuts)]
+        self.mincuts_normalized = [
+            mincut / log10(self.ns[i]) for i, mincut in enumerate(self.mincuts)
+        ]
+        self.mincuts_normalized_log2 = [
+            mincut / log2(self.ns[i]) for i, mincut in enumerate(self.mincuts)
+        ]
+        self.mincuts_normalized_sqrt = [
+            mincut / (self.ns[i]**0.5 / 5)
+            for i, mincut in enumerate(self.mincuts)
+        ]
 
         self.conductances = []
         for i, cluster in enumerate(self.clusters):
             self.conductances.append(cluster.conductance(self.global_graph))
 
         if self.resolution != -1:
-            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, self.ms, self.modularities, self.cpms, self.mincuts, self.mincuts_normalized, self.mincuts_normalized_log2, self.mincuts_normalized_sqrt, self.conductances)),
-                columns =['cluster', 'n', 'm', 'modularity', 'cpm_score', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+            self.cluster_stats = pd.DataFrame(
+                list(
+                    zip(self.ids, self.ns, self.ms, self.modularities,
+                        self.cpms, self.mincuts, self.mincuts_normalized,
+                        self.mincuts_normalized_log2,
+                        self.mincuts_normalized_sqrt, self.conductances)),
+                columns=[
+                    'cluster', 'n', 'm', 'modularity', 'cpm_score',
+                    'connectivity', 'connectivity_normalized_log10(n)',
+                    'connectivity_normalized_log2(n)',
+                    'connectivity_normalized_sqrt(n)/5', 'conductance'
+                ])
         else:
-            self.cluster_stats = pd.DataFrame(list(zip(self.ids, self.ns, self.ms, self.modularities, self.mincuts, self.mincuts_normalized, self.mincuts_normalized_log2, self.mincuts_normalized_sqrt, self.conductances)),
-            columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
-
+            self.cluster_stats = pd.DataFrame(
+                list(
+                    zip(self.ids, self.ns, self.ms, self.modularities,
+                        self.mincuts, self.mincuts_normalized,
+                        self.mincuts_normalized_log2,
+                        self.mincuts_normalized_sqrt, self.conductances)),
+                columns=[
+                    'cluster', 'n', 'm', 'modularity', 'connectivity',
+                    'connectivity_normalized_log10(n)',
+                    'connectivity_normalized_log2(n)',
+                    'connectivity_normalized_sqrt(n)/5', 'conductance'
+                ])
 
     def compute_summary(self) -> pd.DataFrame:
-        # TODO: Compute the summary stats and save it to a dataframe
+        '''
+        computing summary stats
+        '''
 
         if self.resolution != -1:
-            self.summary_stats = pd.DataFrame(list(zip("Overall", self.global_graph.n(), self.global_graph.m(), sum(self.modularities), sum(self.cpms), None, None, None, None, None)),
-                columns =['cluster', 'n', 'm', 'modularity', 'cpm_score', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+            self.summary_stats = pd.DataFrame(
+                list(
+                    zip("Overall", self.global_graph.n(),
+                        self.global_graph.m(), sum(self.modularities),
+                        sum(self.cpms), None, None, None, None, None)),
+                columns=[
+                    'cluster', 'n', 'm', 'modularity', 'cpm_score',
+                    'connectivity', 'connectivity_normalized_log10(n)',
+                    'connectivity_normalized_log2(n)',
+                    'connectivity_normalized_sqrt(n)/5', 'conductance'
+                ])
         else:
-            self.summary_stats = pd.DataFrame(list(zip("Overall", self.global_graph.n(), self.global_graph.m(), sum(self.modularities), None, None, None, None, None)),
-            columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+            self.summary_stats = pd.DataFrame(
+                list(
+                    zip("Overall",
+                        self.global_graph.n(), self.global_graph.m(),
+                        sum(self.modularities), None, None, None, None, None)),
+                columns=[
+                    'cluster', 'n', 'm', 'modularity', 'connectivity',
+                    'connectivity_normalized_log10(n)',
+                    'connectivity_normalized_log2(n)',
+                    'connectivity_normalized_sqrt(n)/5', 'conductance'
+                ])
 
 
 def from_existing_clustering(filepath) -> List[IntangibleSubgraph]:
     ''' I just modified the original method to return a dict mapping from index to clustering '''
     # node_id cluster_id format
     clusters: Dict[str, IntangibleSubgraph] = {}
-    with open(filepath) as f:
+    with open(filepath, encoding="utf-8") as f:
         for line in f:
             node_id, cluster_id = line.split()
-            clusters.setdefault(
-                cluster_id, IntangibleSubgraph([], cluster_id)
-            ).subset.append(int(node_id))
+            clusters.setdefault(cluster_id, IntangibleSubgraph(
+                [], cluster_id)).subset.append(int(node_id))
     return {key: val for key, val in clusters.items() if val.n() > 1}
 
-def main(
-    input: str = typer.Option(..., "--input", "-i"),
-    existing_clustering: str = typer.Option(..., "--existing-clustering", "-e"),
-    resolution: float = typer.Option(-1, "--resolution", "-g"),
-    universal_before: str = typer.Option("", "--universal-before", "-ub"),
-    output: str = typer.Option("", "--output", "-o")
-): 
+
+def main(input_file: str = typer.Option(..., "--input", "-i"),
+         existing_clustering: str = typer.Option(..., "--existing-clustering",
+                                                 "-e"),
+         resolution: float = typer.Option(-1, "--resolution", "-g"),
+         universal_before: str = typer.Option("", "--universal-before", "-ub"),
+         output: str = typer.Option("", "--output", "-o")):
+    '''
+    Main function for use in terminal
+    '''
+
     if output == "":
         base, _ = os.path.splitext(existing_clustering)
         outfile = base + '_stats.csv'
@@ -133,23 +227,22 @@ def main(
     print("Done")
 
     print("Loading graph...")
-    
+
     # (VR) Load full graph into Graph object
     edgelist_reader = nk.graphio.EdgeListReader("\t", 0)
-    nk_graph = edgelist_reader.read(input)
+    nk_graph = edgelist_reader.read(input_file)
 
     global_graph = Graph(nk_graph, "")
     ms = [cluster.count_edges(global_graph) for cluster in clusters]
     print("Done")
 
-
-
-    # ----------------------------------------------------------------------------------------------------------
+    # --------------------------------------------------
     # Statistics Computing
 
-
     print("Computing modularity...")
-    modularities = [global_graph.modularity_of(cluster) for cluster in clusters]
+    modularities = [
+        global_graph.modularity_of(cluster) for cluster in clusters
+    ]
     print("Done")
 
     if resolution != -1:
@@ -161,13 +254,18 @@ def main(
     clusters = [cluster.realize(global_graph) for cluster in clusters]
     print("Done")
 
-
     print("Computing mincut...")
     mincut_results = [viecut(cluster) for cluster in clusters]
     mincuts = [result[-1] for result in mincut_results]
-    mincuts_normalized = [mincut/log10(ns[i]) for i, mincut in enumerate(mincuts)]
-    mincuts_normalized_log2 = [mincut/log2(ns[i]) for i, mincut in enumerate(mincuts)]
-    mincuts_normalized_sqrt = [mincut/(ns[i]**0.5/5) for i, mincut in  enumerate(mincuts)]
+    mincuts_normalized = [
+        mincut / log10(ns[i]) for i, mincut in enumerate(mincuts)
+    ]
+    mincuts_normalized_log2 = [
+        mincut / log2(ns[i]) for i, mincut in enumerate(mincuts)
+    ]
+    mincuts_normalized_sqrt = [
+        mincut / (ns[i]**0.5 / 5) for i, mincut in enumerate(mincuts)
+    ]
 
     print("Done")
 
@@ -195,34 +293,51 @@ def main(
     # ktruss_nodes.append(None)
     print("Done")
 
-
-
-
-    # ----------------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------
     # Output File
 
     print("Writing to output file...")
 
     if resolution != -1:
-        df = pd.DataFrame(list(zip(ids, ns, ms, modularities, cpms, mincuts, mincuts_normalized, mincuts_normalized_log2, mincuts_normalized_sqrt, conductances)),
-            columns =['cluster', 'n', 'm', 'modularity', 'cpm_score', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+        df = pd.DataFrame(list(
+            zip(ids, ns, ms, modularities, cpms, mincuts, mincuts_normalized,
+                mincuts_normalized_log2, mincuts_normalized_sqrt,
+                conductances)),
+                          columns=[
+                              'cluster', 'n', 'm', 'modularity', 'cpm_score',
+                              'connectivity',
+                              'connectivity_normalized_log10(n)',
+                              'connectivity_normalized_log2(n)',
+                              'connectivity_normalized_sqrt(n)/5',
+                              'conductance'
+                          ])
     else:
-        df = pd.DataFrame(list(zip(ids, ns, ms, modularities, mincuts, mincuts_normalized, mincuts_normalized_log2, mincuts_normalized_sqrt, conductances)),
-            columns =['cluster', 'n', 'm', 'modularity', 'connectivity', 'connectivity_normalized_log10(n)', 'connectivity_normalized_log2(n)', 'connectivity_normalized_sqrt(n)/5', 'conductance'])
+        df = pd.DataFrame(list(
+            zip(ids, ns, ms, modularities, mincuts, mincuts_normalized,
+                mincuts_normalized_log2, mincuts_normalized_sqrt,
+                conductances)),
+                          columns=[
+                              'cluster', 'n', 'm', 'modularity',
+                              'connectivity',
+                              'connectivity_normalized_log10(n)',
+                              'connectivity_normalized_log2(n)',
+                              'connectivity_normalized_sqrt(n)/5',
+                              'conductance'
+                          ])
 
     df.to_csv(outfile, index=False)
     print("Done")
 
-
-
     if len(universal_before) > 0:
         print("Writing extra outputs from CM2Universal")
 
-        cluster_sizes = {key.replace('"', ''): val for key, val in zip(ids, ns)}
-        
+        cluster_sizes = {
+            key.replace('"', ''): val
+            for key, val in zip(ids, ns)
+        }
         output_entries = []
-        with open(universal_before) as json_file:
-            before = json.load(json_file) 
+        with open(universal_before, encoding="utf-8") as json_file:
+            before = json.load(json_file)
             for cluster in before:
                 if not cluster['extant']:
                     output_entries.append({
@@ -255,24 +370,31 @@ def main(
                 csv_lines.append(f'{entry["input_cluster"]},{entry["n"]},,,0')
             else:
                 for descendant, desc_n in entry['descendants'].items():
-                    csv_lines.append(f'{entry["input_cluster"]},{entry["n"]},{descendant},{desc_n},0')
+                    csv_lines.append(
+                        f'{entry["input_cluster"]},{entry["n"]},{descendant},{desc_n},0'
+                    )
 
         print("\tWriting JSON")
         # Write the array of dictionaries as formatted JSON to the file
-        with open(json_file_path, 'w') as json_file:
+        with open(json_file_path, 'w', encoding="utf-8") as json_file:
             json.dump(output_entries, json_file, indent=4)
         print("\tDone")
 
         print("\tWriting CSV")
         # Write the lines to the file
-        with open(csv_file_path, 'w') as file:
+        with open(csv_file_path, 'w', encoding="utf-8") as file:
             for line in csv_lines:
                 file.write(line + '\n')
         print("\tDone")
         print("Done")
 
+
 def entry_point():
+    '''
+    entry point, calls the main function
+    '''
     typer.run(main)
+
 
 if __name__ == "__main__":
     entry_point()
