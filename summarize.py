@@ -7,30 +7,56 @@ from sys import argv
 base, ext = os.path.splitext(argv[1])
 
 def summarize_stats(filename):
+
+    # getting overall stats
     stats = pd.read_csv(filename)
 
     overall = stats.iloc[-1]
 
+    # number of nodes
     n = overall['n']
+
+    # number of edges
     m = overall['m']    
 
     node_dist = stats.iloc[:-1]['n']
 
+    # total number of nodes
     total_n = node_dist.sum()
+
+    # total number of edges
     total_m = stats.iloc[:-1]['m'].sum()
 
+    # number of nodes in clusters with 2 or more nodes
     total_n2 = node_dist[node_dist > 1].sum()
+
+    # number of nodes in clusters with more than 10 nodes
     total_n11 = node_dist[node_dist > 10].sum()
 
+    # min number of nodes in cluster (smallest one)
     min_cluster = node_dist.min()
+
+    # number of nodes in 1st quartile of clusters (by size)
     q1_cluster = node_dist.quantile(0.25)
+
+    # median number of nodes in cluster
     med_cluster = node_dist.median()
+
+    # mean number of nodes in cluster
     mean_cluster = node_dist.mean()
+
+    # number of nodes in 3rd quartile of clusters (by size)
     q3_cluster = node_dist.quantile(0.75)
+
+    # max number of nodes in cluster (biggest)
     max_cluster = node_dist.max()
+
+
+    # using modularity
 
     modularity = overall['modularity']
     modularities = stats.iloc[:-1]['modularity']
+
 
     modularity_min = modularities.min()
     modularity_q1 = modularities.quantile(0.25)
@@ -39,6 +65,8 @@ def summarize_stats(filename):
     modularity_q3 = modularities.quantile(0.75)
     modularity_max = modularities.max()
     
+
+    # need to change to a conditional statement now that I have the resolution
     try:
         cpm_score = overall['cpm_score']
         cpm_scores = stats.iloc[:-1]['cpm_score']
