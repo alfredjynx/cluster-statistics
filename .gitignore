@@ -4,7 +4,7 @@ tau_comparison/
 test/
 cluster-fate/
 
-*.ipynb
+# *.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
