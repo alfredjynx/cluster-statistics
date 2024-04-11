@@ -1,19 +1,18 @@
-# pylint: disable=c-extension-no-member
-
+# pylint: disable=c-extension-no-member,fixme
 '''
 Defining the class that computes cluster statistics
 '''
 
-import os
 import json
+import os
 from typing import Dict, List
-from numpy import log10, log2
-import typer
-import pandas as pd
-import networkit as nk
 
+import networkit as nk
+import pandas as pd
+import typer
 from hm01.graph import Graph, IntangibleSubgraph, RealizedSubgraph
 from hm01.mincut import viecut
+from numpy import log2, log10
 
 
 class Statistics:
@@ -21,11 +20,13 @@ class Statistics:
     Class to Compute Cluster Statistics
     '''
 
-    def __init__(self,
-                 input_file,
-                 existing_clustering,
-                 resolution=0,
-                 output=None):
+    def __init__(
+        self,
+        input_file,
+        existing_clustering,
+        resolution=0,
+        output=None,
+    ):
 
         self.input = input_file
         self.existing_clustering = existing_clustering
@@ -37,7 +38,7 @@ class Statistics:
             self.outfile = base + '_stats.csv'
         else:
             self.outfile = output
-        
+
         base, _ = os.path.splitext(self.existing_clustering)
         self.summary_outfile = base + 'summary_stats.csv'
 
@@ -131,7 +132,9 @@ class Statistics:
 
         # Only realized clusters from this point onward
 
-        self.mincut_results = [viecut(cluster) for cluster in self.realized_clusters]
+        self.mincut_results = [
+            viecut(cluster) for cluster in self.realized_clusters
+        ]
         self.mincuts = [result[-1] for result in self.mincut_results]
         self.mincuts_normalized = [
             mincut / log10(self.ns[i]) for i, mincut in enumerate(self.mincuts)
@@ -156,39 +159,70 @@ class Statistics:
                         self.mincuts_normalized_log2,
                         self.mincuts_normalized_sqrt, self.conductances)),
                 columns=[
-                    'cluster', 'n', 'm', 'modularity', 'cpm_score',
-                    'connectivity', 'connectivity_normalized_log10(n)',
+                    'cluster',
+                    'n',
+                    'm',
+                    'modularity',
+                    'cpm_score',
+                    'connectivity',
+                    'connectivity_normalized_log10(n)',
                     'connectivity_normalized_log2(n)',
-                    'connectivity_normalized_sqrt(n)/5', 'conductance'
+                    'connectivity_normalized_sqrt(n)/5',
+                    'conductance',
                 ])
         else:
             self.cluster_stats = pd.DataFrame(
                 list(
-                    zip(self.ids, self.ns, self.ms, self.modularities,
-                        self.mincuts, self.mincuts_normalized,
+                    zip(
+                        self.ids,
+                        self.ns,
+                        self.ms,
+                        self.modularities,
+                        self.mincuts,
+                        self.mincuts_normalized,
                         self.mincuts_normalized_log2,
-                        self.mincuts_normalized_sqrt, self.conductances)),
+                        self.mincuts_normalized_sqrt,
+                        self.conductances,
+                    )),
                 columns=[
-                    'cluster', 'n', 'm', 'modularity', 'connectivity',
+                    'cluster',
+                    'n',
+                    'm',
+                    'modularity',
+                    'connectivity',
                     'connectivity_normalized_log10(n)',
                     'connectivity_normalized_log2(n)',
-                    'connectivity_normalized_sqrt(n)/5', 'conductance'
+                    'connectivity_normalized_sqrt(n)/5',
+                    'conductance',
                 ])
-            
+
         # Computing Overall Stats
-        
+
         if self.resolution != -1:
-            print([sum(self.ns), sum(self.ms), sum(self.modularities), sum(self.cpms)])
+            print([
+                sum(self.ns),
+                sum(self.ms),
+                sum(self.modularities),
+                sum(self.cpms),
+            ])
             self.overall_cluster_stats = pd.DataFrame(
-                [[sum(self.ns), sum(self.ms), sum(self.modularities), sum(self.cpms)]],
+                [[
+                    sum(self.ns),
+                    sum(self.ms),
+                    sum(self.modularities),
+                    sum(self.cpms),
+                ]],
                 columns=['n', 'm', 'modularity', 'cpm_score'])
         else:
             print([sum(self.ns), sum(self.ms), sum(self.modularities)])
             self.overall_cluster_stats = pd.DataFrame(
-                [[sum(self.ns), sum(self.ms), sum(self.modularities)]],
+                [[
+                    sum(self.ns),
+                    sum(self.ms),
+                    sum(self.modularities),
+                ]],
                 columns=['n', 'm', 'modularity'])
-            
-    
+
     def basic_stats(self, column):
         '''
         computing basic summary statistics for the compute_summary function 
@@ -200,27 +234,34 @@ class Statistics:
         column_q3 = column.quantile(0.75)
         column_mean = column.mean()
 
-        return column_min, column_max, column_med, column_q1, column_q3 , column_mean
+        return (
+            column_min,
+            column_max,
+            column_med,
+            column_q1,
+            column_q3,
+            column_mean,
+        )
 
     def compute_summary(self) -> pd.DataFrame:
         '''
         computing summary stats
-        '''  
+        '''
 
         # TODO: Refazer código com base no summarize.py
         # Erro Anterior: Confundir Overall com Summary
-
 
         # number of nodes
         self.n = self.overall_cluster_stats['n']
 
         # number of edges
-        self.m = self.overall_cluster_stats['m']  
+        self.m = self.overall_cluster_stats['m']
 
         self.modularities = self.cluster_stats.iloc[:-1]['modularity']
         self.conductances = self.cluster_stats.iloc[:-1]['conductance']
         self.mincuts = self.cluster_stats.iloc[:-1]['connectivity']
-        self.mincuts_normalized = self.cluster_stats.iloc[:-1]['connectivity_normalized_log10(n)']
+        self.mincuts_normalized = self.cluster_stats.iloc[:-1][
+            'connectivity_normalized_log10(n)']
 
         node_dist = self.cluster_stats.iloc[:-1]['n']
 
@@ -236,97 +277,220 @@ class Statistics:
         # number of nodes in clusters with 10 or more nodes
         total_n11 = node_dist[node_dist > 10].sum()
 
-
-
         # min number of nodes in cluster (smallest one)
-        min_cluster,max_cluster,med_cluster,q1_cluster,q3_cluster,mean_cluster = self.basic_stats(node_dist)
-
+        (
+            min_cluster,
+            max_cluster,
+            med_cluster,
+            q1_cluster,
+            q3_cluster,
+            mean_cluster,
+        ) = self.basic_stats(node_dist)
 
         self.modularity = self.overall_cluster_stats['modularity']
 
-
-        modularity_min, modularity_max, modularity_med, modularity_q1, modularity_q3, modularity_mean  = self.basic_stats(self.modularities)
+        (
+            modularity_min,
+            modularity_max,
+            modularity_med,
+            modularity_q1,
+            modularity_q3,
+            modularity_mean,
+        ) = self.basic_stats(self.modularities)
 
         if self.resolution != -1:
             cpm_score = self.overall_cluster_stats['cpm_score']
             self.cpms = self.cluster_stats.iloc[:-1]['cpm_score']
 
-            cpm_min, cpm_max, cpm_med, cpm_q1, cpm_q3, cpm_mean  = self.basic_stats(self.cpms)
-        
-        conductance_min, conductance_max, conductance_med, conductance_q1, conductance_q3, conductance_mean  = self.basic_stats(self.conductances)
+            (
+                cpm_min,
+                cpm_max,
+                cpm_med,
+                cpm_q1,
+                cpm_q3,
+                cpm_mean,
+            ) = self.basic_stats(self.cpms)
 
-        mincuts_min, mincuts_max, mincuts_med, mincuts_q1, mincuts_q3, mincuts_mean  = self.basic_stats(self.mincuts)
+        (
+            conductance_min,
+            conductance_max,
+            conductance_med,
+            conductance_q1,
+            conductance_q3,
+            conductance_mean,
+        ) = self.basic_stats(self.conductances)
 
-        mincuts_normalized_min, mincuts_normalized_max, mincuts_normalized_med, mincuts_normalized_q1, mincuts_normalized_q3, mincuts_normalized_mean  = self.basic_stats(self.mincuts)
+        (
+            mincuts_min,
+            mincuts_max,
+            mincuts_med,
+            mincuts_q1,
+            mincuts_q3,
+            mincuts_mean,
+        ) = self.basic_stats(self.mincuts)
 
-        coverage_2 = round(total_n2/self.n, 3)
-        coverage_11 = round(total_n11/self.n, 3)
+        (
+            mincuts_normalized_min,
+            mincuts_normalized_max,
+            mincuts_normalized_med,
+            mincuts_normalized_q1,
+            mincuts_normalized_q3,
+            mincuts_normalized_mean,
+        ) = self.basic_stats(self.mincuts)
+
+        coverage_2 = round(total_n2 / self.n, 3)
+        coverage_11 = round(total_n11 / self.n, 3)
 
         if self.resolution != -1:
             self.summary_stats = pd.Series({
-            'network': self.outfile,
-            'num_clusters': self.cluster_stats.shape[0] - 1,
-            'network_n': self.n,
-            'network_m': self.m,
-            'total_n': total_n,
-            'total_m': total_m,
-            'cluster_size_dist': [min_cluster, q1_cluster, med_cluster, q3_cluster, max_cluster],
-            'mean_cluster_size': mean_cluster,
-            'total_modularity': self.modularity,
-            'modularity_dist': [modularity_min, modularity_q1, modularity_med, modularity_q3, modularity_max],
-            'modularity_mean': modularity_mean,
-            'total_cpm_score': cpm_score,
-            'cpm_dist': [cpm_min, cpm_q1, cpm_med, cpm_q3, cpm_max],
-            'cpm_mean': cpm_mean,
-            'conductance_dist': [conductance_min, conductance_q1, conductance_med, conductance_q3, conductance_max],
-            'conductance_mean': conductance_mean,
-            'mincuts_dist': [mincuts_min, mincuts_q1, mincuts_med, mincuts_q3, mincuts_max],
-            'mincuts_mean': mincuts_mean,
-            'mincuts_normalized_dist': [mincuts_normalized_min, mincuts_normalized_q1, mincuts_normalized_med, mincuts_normalized_q3, mincuts_normalized_max],
-            'mincuts_mean_normalized': mincuts_normalized_mean,
-            'node_coverage': coverage_2,
-            'node_coverage_gr10': coverage_11
-        })
+                'network':
+                self.outfile,
+                'num_clusters':
+                self.cluster_stats.shape[0] - 1,
+                'network_n':
+                self.n,
+                'network_m':
+                self.m,
+                'total_n':
+                total_n,
+                'total_m':
+                total_m,
+                'cluster_size_dist': [
+                    min_cluster,
+                    q1_cluster,
+                    med_cluster,
+                    q3_cluster,
+                    max_cluster,
+                ],
+                'mean_cluster_size':
+                mean_cluster,
+                'total_modularity':
+                self.modularity,
+                'modularity_dist': [
+                    modularity_min,
+                    modularity_q1,
+                    modularity_med,
+                    modularity_q3,
+                    modularity_max,
+                ],
+                'modularity_mean':
+                modularity_mean,
+                'total_cpm_score':
+                cpm_score,
+                'cpm_dist': [
+                    cpm_min,
+                    cpm_q1,
+                    cpm_med,
+                    cpm_q3,
+                    cpm_max,
+                ],
+                'cpm_mean':
+                cpm_mean,
+                'conductance_dist': [
+                    conductance_min,
+                    conductance_q1,
+                    conductance_med,
+                    conductance_q3,
+                    conductance_max,
+                ],
+                'conductance_mean':
+                conductance_mean,
+                'mincuts_dist': [
+                    mincuts_min,
+                    mincuts_q1,
+                    mincuts_med,
+                    mincuts_q3,
+                    mincuts_max,
+                ],
+                'mincuts_mean':
+                mincuts_mean,
+                'mincuts_normalized_dist': [
+                    mincuts_normalized_min,
+                    mincuts_normalized_q1,
+                    mincuts_normalized_med,
+                    mincuts_normalized_q3,
+                    mincuts_normalized_max,
+                ],
+                'mincuts_mean_normalized':
+                mincuts_normalized_mean,
+                'node_coverage':
+                coverage_2,
+                'node_coverage_gr10':
+                coverage_11,
+            })
         else:
             self.summary_stats = pd.Series({
-            'network': self.outfile,
-            'num_clusters': self.cluster_stats.shape[0] - 1,
-            'network_n': self.n,
-            'network_m': self.m,
-            'total_n': total_n,
-            'total_m': total_m,
-            'cluster_size_dist': [min_cluster, q1_cluster, med_cluster, q3_cluster, max_cluster],
-            'mean_cluster_size': mean_cluster,
-            'total_modularity': self.modularity,
-            'modularity_dist': [modularity_min, modularity_q1, modularity_med, modularity_q3, modularity_max],
-            'modularity_mean': modularity_mean,
-            'conductance_dist': [conductance_min, conductance_q1, conductance_med, conductance_q3, conductance_max],
-            'conductance_mean': conductance_mean,
-            'mincuts_dist': [mincuts_min, mincuts_q1, mincuts_med, mincuts_q3, mincuts_max],
-            'mincuts_mean': mincuts_mean,
-            'mincuts_normalized_dist': [mincuts_normalized_min, mincuts_normalized_q1, mincuts_normalized_med, mincuts_normalized_q3, mincuts_normalized_max],
-            'mincuts_mean_normalized': mincuts_normalized_mean,
-            'node_coverage': coverage_2,
-            'node_coverage_gr10': coverage_11
-        })
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
+                'network':
+                self.outfile,
+                'num_clusters':
+                self.cluster_stats.shape[0] - 1,
+                'network_n':
+                self.n,
+                'network_m':
+                self.m,
+                'total_n':
+                total_n,
+                'total_m':
+                total_m,
+                'cluster_size_dist': [
+                    min_cluster,
+                    q1_cluster,
+                    med_cluster,
+                    q3_cluster,
+                    max_cluster,
+                ],
+                'mean_cluster_size':
+                mean_cluster,
+                'total_modularity':
+                self.modularity,
+                'modularity_dist': [
+                    modularity_min,
+                    modularity_q1,
+                    modularity_med,
+                    modularity_q3,
+                    modularity_max,
+                ],
+                'modularity_mean':
+                modularity_mean,
+                'conductance_dist': [
+                    conductance_min,
+                    conductance_q1,
+                    conductance_med,
+                    conductance_q3,
+                    conductance_max,
+                ],
+                'conductance_mean':
+                conductance_mean,
+                'mincuts_dist': [
+                    mincuts_min,
+                    mincuts_q1,
+                    mincuts_med,
+                    mincuts_q3,
+                    mincuts_max,
+                ],
+                'mincuts_mean':
+                mincuts_mean,
+                'mincuts_normalized_dist': [
+                    mincuts_normalized_min,
+                    mincuts_normalized_q1,
+                    mincuts_normalized_med,
+                    mincuts_normalized_q3,
+                    mincuts_normalized_max,
+                ],
+                'mincuts_mean_normalized':
+                mincuts_normalized_mean,
+                'node_coverage':
+                coverage_2,
+                'node_coverage_gr10':
+                coverage_11
+            })
 
 
 def from_existing_clustering(filepath) -> List[IntangibleSubgraph]:
-    ''' I just modified the original method to return a dict mapping from index to clustering '''
+    ''' 
+    I just modified the original method to return a dict 
+    mapping from index to clustering .
+    '''
     # node_id cluster_id format
     clusters: Dict[str, IntangibleSubgraph] = {}
     with open(filepath, encoding="utf-8") as f:
@@ -337,12 +501,33 @@ def from_existing_clustering(filepath) -> List[IntangibleSubgraph]:
     return {key: val for key, val in clusters.items() if val.n() > 1}
 
 
-def main(input_file: str = typer.Option(..., "--input", "-i"),
-         existing_clustering: str = typer.Option(..., "--existing-clustering",
-                                                 "-e"),
-         resolution: float = typer.Option(-1, "--resolution", "-g"),
-         universal_before: str = typer.Option("", "--universal-before", "-ub"),
-         output: str = typer.Option("", "--output", "-o")):
+def main(
+        input_file: str = typer.Option(
+            ...,
+            "--input",
+            "-i",
+        ),
+        existing_clustering: str = typer.Option(
+            ...,
+            "--existing-clustering",
+            "-e",
+        ),
+        resolution: float = typer.Option(
+            -1,
+            "--resolution",
+            "-g",
+        ),
+        universal_before: str = typer.Option(
+            "",
+            "--universal-before",
+            "-ub",
+        ),
+        output: str = typer.Option(
+            "",
+            "--output",
+            "-o",
+        ),
+):
     '''
     Main function for use in terminal
     '''
@@ -432,31 +617,59 @@ def main(input_file: str = typer.Option(..., "--input", "-i"),
     print("Writing to output file...")
 
     if resolution != -1:
-        df = pd.DataFrame(list(
-            zip(ids, ns, ms, modularities, cpms, mincuts, mincuts_normalized,
-                mincuts_normalized_log2, mincuts_normalized_sqrt,
-                conductances)),
-                          columns=[
-                              'cluster', 'n', 'm', 'modularity', 'cpm_score',
-                              'connectivity',
-                              'connectivity_normalized_log10(n)',
-                              'connectivity_normalized_log2(n)',
-                              'connectivity_normalized_sqrt(n)/5',
-                              'conductance'
-                          ])
+        df = pd.DataFrame(
+            list(
+                zip(
+                    ids,
+                    ns,
+                    ms,
+                    modularities,
+                    cpms,
+                    mincuts,
+                    mincuts_normalized,
+                    mincuts_normalized_log2,
+                    mincuts_normalized_sqrt,
+                    conductances,
+                )),
+            columns=[
+                'cluster',
+                'n',
+                'm',
+                'modularity',
+                'cpm_score',
+                'connectivity',
+                'connectivity_normalized_log10(n)',
+                'connectivity_normalized_log2(n)',
+                'connectivity_normalized_sqrt(n)/5',
+                'conductance',
+            ],
+        )
     else:
-        df = pd.DataFrame(list(
-            zip(ids, ns, ms, modularities, mincuts, mincuts_normalized,
-                mincuts_normalized_log2, mincuts_normalized_sqrt,
-                conductances)),
-                          columns=[
-                              'cluster', 'n', 'm', 'modularity',
-                              'connectivity',
-                              'connectivity_normalized_log10(n)',
-                              'connectivity_normalized_log2(n)',
-                              'connectivity_normalized_sqrt(n)/5',
-                              'conductance'
-                          ])
+        df = pd.DataFrame(
+            list(
+                zip(
+                    ids,
+                    ns,
+                    ms,
+                    modularities,
+                    mincuts,
+                    mincuts_normalized,
+                    mincuts_normalized_log2,
+                    mincuts_normalized_sqrt,
+                    conductances,
+                )),
+            columns=[
+                'cluster',
+                'n',
+                'm',
+                'modularity',
+                'connectivity',
+                'connectivity_normalized_log10(n)',
+                'connectivity_normalized_log2(n)',
+                'connectivity_normalized_sqrt(n)/5',
+                'conductance',
+            ],
+        )
 
     df.to_csv(outfile, index=False)
     print("Done")
@@ -503,9 +716,18 @@ def main(input_file: str = typer.Option(..., "--input", "-i"),
                 csv_lines.append(f'{entry["input_cluster"]},{entry["n"]},,,0')
             else:
                 for descendant, desc_n in entry['descendants'].items():
-                    csv_lines.append(
-                        f'{entry["input_cluster"]},{entry["n"]},{descendant},{desc_n},0'
+                    csv_line_entries = map(
+                        str,
+                        [
+                            entry["input_cluster"],
+                            entry["n"],
+                            descendant,
+                            desc_n,
+                            0,
+                        ],
                     )
+                    csv_line = ','.join(csv_line_entries)
+                    csv_lines.append(csv_line)
 
         print("\tWriting JSON")
         # Write the array of dictionaries as formatted JSON to the file
