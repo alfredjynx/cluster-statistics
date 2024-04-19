@@ -3,7 +3,7 @@
 Defining the class that computes cluster statistics
 '''
 
-import os
+from pathlib import Path
 from typing import Dict, List
 
 import networkit as nk
@@ -20,25 +20,23 @@ class Statistics:
 
     def __init__(
         self,
-        input_file,
-        existing_clustering,
-        resolution=0,
-        output=None,
+        input_file: Path | str,
+        existing_clustering: Path | str,
+        resolution: float = 0.0,
+        output: Path | str | None = None,
     ):
-
-        self.input = input_file
-        self.existing_clustering = existing_clustering
+        self.input = Path(input_file)
+        self.existing_clustering = Path(existing_clustering)
         self.resolution = resolution
         # self.universal_before = universal_before
 
-        if output is None or output == "":
-            base, _ = os.path.splitext(existing_clustering)
-            self.outfile = base + '_stats.csv'
-        else:
-            self.outfile = output
+        base = self.existing_clustering
+        self.summary_outfile = base.with_name(base.stem + '_summary_stats.csv')
 
-        base, _ = os.path.splitext(self.existing_clustering)
-        self.summary_outfile = base + 'summary_stats.csv'
+        if output is None or output == '':
+            self.outfile = base.with_name(base.stem + '_stats.csv')
+        else:
+            self.outfile = Path(output)
 
         self.clusters = None
         self.realized_clusters = None
@@ -82,7 +80,7 @@ class Statistics:
 
         # (VR) Load full graph into Graph object
         edgelist_reader = nk.graphio.EdgeListReader("\t", 0)
-        nk_graph = edgelist_reader.read(self.input)
+        nk_graph = edgelist_reader.read(str(self.input))
 
         self.global_graph = Graph(nk_graph, "")
 
@@ -152,10 +150,18 @@ class Statistics:
         if self.resolution != -1:
             self.cluster_stats = pd.DataFrame(
                 list(
-                    zip(self.ids, self.ns, self.ms, self.modularities,
-                        self.cpms, self.mincuts, self.mincuts_normalized,
+                    zip(
+                        self.ids,
+                        self.ns,
+                        self.ms,
+                        self.modularities,
+                        self.cpms,
+                        self.mincuts,
+                        self.mincuts_normalized,
                         self.mincuts_normalized_log2,
-                        self.mincuts_normalized_sqrt, self.conductances)),
+                        self.mincuts_normalized_sqrt,
+                        self.conductances,
+                    )),
                 columns=[
                     'cluster',
                     'n',
