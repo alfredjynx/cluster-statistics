@@ -9,6 +9,7 @@ humanfriendly
 igraph
 infomap
 iniconfig
+ipykernel
 jsonpickle
 leidenalg
 networkit
@@ -33,3 +34,4 @@ yapf
 
 git+https://github.com/vikramr2/python-mincut
 git+https://github.com/illinois-or-research-analytics/cm_pipeline
+-e ./package
