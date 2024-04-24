@@ -6,6 +6,7 @@ Defining the class that computes cluster statistics
 from pathlib import Path
 from typing import Dict, List
 
+import json
 import networkit as nk
 import pandas as pd
 from hm01.graph import Graph, IntangibleSubgraph, RealizedSubgraph
@@ -22,13 +23,14 @@ class Statistics:
         self,
         input_file: Path | str,
         existing_clustering: Path | str,
+        universal_before: Path | str,
         resolution: float = 0.0,
         output: Path | str | None = None,
     ):
         self.input = Path(input_file)
         self.existing_clustering = Path(existing_clustering)
         self.resolution = resolution
-        # self.universal_before = universal_before
+        self.universal_before = universal_before
 
         base = self.existing_clustering
         self.summary_outfile = base.with_name(base.stem + '_summary_stats.csv')
@@ -226,6 +228,89 @@ class Statistics:
                     sum(self.modularities),
                 ]],
                 columns=['n', 'm', 'modularity'])
+
+        if len(self.universal_before) > 0:
+
+            # Writing extra outputs from CM2Universal
+
+            cluster_sizes = {
+                key.replace('"', ''): val
+                for key, val in zip(self.ids, self.ns)
+            }
+
+            output_entries = []
+
+            with open(self.universal_before, encoding="utf-8") as json_file:
+
+                before = json.load(json_file)
+
+                for cluster in before:
+
+                    # If cluster is not extant
+                    if not cluster['extant']:
+
+                        # format cluster to put in output
+                        output_entries.append({
+                            "input_cluster": cluster['label'],
+                            'n': len(cluster['nodes']),
+                            'extant': False,
+                            'descendants': {
+                                desc: cluster_sizes[desc]
+                                for desc in cluster['descendants']
+                                if desc in cluster_sizes
+                            }
+                        })
+                    else:
+
+                        # format cluster to put in output
+                        # extant cluster are the ones who were not modified by CM
+                        output_entries.append({
+                            "input_cluster": cluster['label'],
+                            'n': len(cluster['nodes']),
+                            'extant': True
+                        })
+
+            # Specify the file path for the JSON output
+            json_file_path = self.outfile + '_to_universal.json'
+            csv_file_path = self.outfile + '_to_universal.csv'
+
+            # Get lines for the csv format
+            csv_lines = ['input_cluster,n,descendant,desc_n,extant']
+            for entry in output_entries:
+                if entry['extant']:
+                    csv_lines.append(
+                        f'{entry["input_cluster"]},{entry["n"]},,,1')
+                elif len(entry['descendants']) == 0:
+                    csv_lines.append(
+                        f'{entry["input_cluster"]},{entry["n"]},,,0')
+                else:
+                    for descendant, desc_n in entry['descendants'].items():
+                        csv_line_entries = map(
+                            str,
+                            [
+                                entry["input_cluster"],
+                                entry["n"],
+                                descendant,
+                                desc_n,
+                                0,
+                            ],
+                        )
+                        csv_line = ','.join(csv_line_entries)
+                        csv_lines.append(csv_line)
+
+            # Writing
+            # Write the array of dictionaries as formatted JSON to the file
+            with open(json_file_path, 'w', encoding="utf-8") as json_file:
+                json.dump(output_entries, json_file, indent=4)
+            # Done
+
+            # Writing CSV
+            # Write the lines to the file
+            with open(csv_file_path, 'w', encoding="utf-8") as file:
+                for line in csv_lines:
+                    file.write(line + '\n')
+
+            # Done
 
     def basic_stats(self, column):
         '''
